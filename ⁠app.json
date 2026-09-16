@@ -1,0 +1,16 @@
+{
+  "expo": {
+    "name": "إدارة ديوني",
+    "slug": "manage-debt",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "android": {
+      "package": "com.mhm421.managedebt"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "5c29accf-1f88-4c3b-953e-fdaad87b4d7d"
+      }
+    }
+  }
+}
