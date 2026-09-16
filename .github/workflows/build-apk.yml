@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Android APK Offline
 
 on:
   push:
@@ -9,7 +9,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository
+      - name: Checkout Code
         uses: actions/checkout@v4
 
       - name: Setup Node.js
@@ -17,60 +17,27 @@ jobs:
         with:
           node-version: 18
 
-      - name: Setup Java
+      - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Install dependencies
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Project Dependencies
         run: npm install --force --ignore-scripts
 
-      - name: Install EAS CLI
-        run: npm install -g eas-cli
+      - name: Prebuild Native Android Project
+        run: npx expo prebuild --platform android --clean
 
-      - name: Force Exact Configs & Generate Keystore
-        run: |
-          cat << 'EOF' > app.json
-          {
-            "expo": {
-              "name": "إدارة ديوني",
-              "slug": "manage-debt",
-              "android": {
-                "package": "com.mhm421.managedebt"
-              },
-              "extra": {
-                "eas": {
-                  "projectId": "5c29accf-1f88-4c3b-953e-fdaad87b4d7d"
-                }
-              }
-            }
-          }
-          EOF
-          cat << 'EOF' > eas.json
-          {
-            "cli": {
-              "appVersionSource": "remote"
-            },
-            "build": {
-              "preview": {
-                "android": {
-                  "buildType": "apk"
-                }
-              }
-            }
-          }
-          EOF
-          keytool -genkeypair -v -storetype PKCS12 -keystore release.keystore -alias debt-key -keyalg RSA -keysize 2048 -validity 10000 -storepass password123 -keypass password123 -dname "CN=ManageDebt, OU=Mobile, O=App, L=City, S=State, C=PS"
+      - name: Build APK via Gradle
+        working-directory: android
+        run: ./gradlew assembleRelease --no-daemon
 
-      - name: Build APK with EAS
-        run: eas build --platform android --profile preview --non-interactive
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-          EAS_PROJECT_ID: 5c29accf-1f88-4c3b-953e-fdaad87b4d7d
-          EAS_NO_VCS: 1
-          EAS_BUILD_PROFILE: preview
-          EAS_ANDROID_KEYSTORE_PATH: release.keystore
-          EAS_ANDROID_KEYSTORE_PASSWORD: password123
-          EAS_ANDROID_KEY_ALIAS: debt-key
-          EAS_ANDROID_KEY_PASSWORD: password123
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Manage-Debts-App
+          path: android/app/build/outputs/apk/release/*.apk
