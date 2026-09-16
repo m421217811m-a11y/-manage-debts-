@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { I18nManager } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -12,7 +12,7 @@ import {
   Inter_700Bold,
   useFonts,
 } from '@expo-google-fonts/inter';
-import { Redirect, Stack } from 'expo-router';
+import { router, Stack, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { AppProvider, useApp } from '@/lib/AppContext';
 
@@ -24,9 +24,21 @@ const queryClient = new QueryClient();
 
 function RootLayoutNav() {
   const { hydrated, settings } = useApp();
-  if (hydrated && !settings.onboardingComplete) {
-    return <Redirect href="/onboarding" />;
-  }
+  const segments = useSegments();
+  const onOnboarding = segments[0] === 'onboarding';
+  const redirectHandled = useRef(false);
+
+  useEffect(() => {
+    if (!hydrated || redirectHandled.current) return;
+    if (!settings.onboardingComplete && !onOnboarding) {
+      redirectHandled.current = true;
+      router.replace('/onboarding');
+    } else if (settings.onboardingComplete && onOnboarding) {
+      redirectHandled.current = true;
+      router.replace('/(tabs)');
+    }
+  }, [hydrated, settings.onboardingComplete, onOnboarding]);
+
   return (
     <Stack screenOptions={{ headerBackTitle: 'رجوع' }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
