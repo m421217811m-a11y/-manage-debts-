@@ -39,6 +39,11 @@ jobs:
           }
           EOF
 
+      - name: Link EAS Project
+        run: eas init --id 5c29accf-1f88-4c3b-953e-fdaad87b4d7d --force --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
       - name: Build APK with EAS
         run: eas build --platform android --profile preview --non-interactive
         env:
