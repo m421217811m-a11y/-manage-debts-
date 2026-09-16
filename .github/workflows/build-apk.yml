@@ -36,20 +36,17 @@ jobs:
         working-directory: artifacts/manage-debts
         run: npx expo prebuild --platform android --clean --no-install
 
-      - name: Bundle JavaScript Assets
-        working-directory: artifacts/manage-debts
+      - name: Configure Debug Signing for Release
+        working-directory: artifacts/manage-debts/android/app
         run: |
-          mkdir -p android/app/src/main/assets
-          npx react-native bundle --platform android --dev false --entry-file index.ts --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res || \
-          npx react-native bundle --platform android --dev false --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res || \
-          npx react-native bundle --platform android --dev false --entry-file App.tsx --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res
+          sed -i 's/signingConfig signingConfigs.release/signingConfig signingConfigs.debug/g' build.gradle
 
-      - name: Build APK via Gradle
+      - name: Build Standalone APK via Gradle
         working-directory: artifacts/manage-debts/android
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew assembleRelease --no-daemon
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Manage-Debts-App
-          path: artifacts/manage-debts/android/app/build/outputs/apk/debug/*.apk
+          path: artifacts/manage-debts/android/app/build/outputs/apk/release/*.apk
