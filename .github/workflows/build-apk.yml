@@ -22,11 +22,24 @@ jobs:
       - name: Install EAS CLI
         run: npm install -g eas-cli
 
-      - name: Generate eas.json for APK
+      - name: Configure EAS Project
         run: |
-          echo '{"build":{"preview":{"android":{"buildType":"apk"}}}}' > eas.json
+          cat << 'EOF' > eas.json
+          {
+            "cli": {
+              "appVersionSource": "remote"
+            },
+            "build": {
+              "preview": {
+                "android": {
+                  "buildType": "apk"
+                }
+              }
+            }
+          }
+          EOF
 
       - name: Build APK with EAS
-        run: eas build --platform android --profile preview --non-interactive
+        run: eas build --platform android --profile preview --non-interactive --id 5c29accf-1f88-4c3b-953e-fdaad87b4d7d
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
