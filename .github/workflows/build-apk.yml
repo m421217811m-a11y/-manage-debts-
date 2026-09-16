@@ -19,15 +19,12 @@ jobs:
       - name: Install dependencies
         run: npm install --force --ignore-scripts
 
-      - name: Setup EAS CLI
-        run: npm install -g --unsafe-perm=true eas-cli
+      - name: Install EAS CLI
+        run: npm install -g eas-cli
 
-      - name: Ensure EAS Config Exists
+      - name: Generate eas.json for APK
         run: |
-          if [ ! -f eas.json ]; then
-            echo '{"cli":{"version":">= 5.0.0"},"build":{"preview":{"developmentClient":false,"distribution":"internal","android":{"buildType":"apk"}},"production":{}}}' > eas.json
-          fi
-        shell: bash
+          echo '{"build":{"preview":{"android":{"buildType":"apk"}}}}' > eas.json
 
       - name: Build APK with EAS
         run: eas build --platform android --profile preview --non-interactive
