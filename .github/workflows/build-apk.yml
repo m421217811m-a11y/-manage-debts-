@@ -23,21 +23,18 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Install Project Dependencies
         run: npm install --force --ignore-scripts
 
       - name: Prebuild Native Android Project
-        run: npx expo prebuild --platform android --clean
+        run: npx --yes expo prebuild --platform android --clean
 
       - name: Build APK via Gradle
         working-directory: android
-        run: ./gradlew assembleRelease --no-daemon
+        run: ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Manage-Debts-App
-          path: android/app/build/outputs/apk/release/*.apk
+          path: android/app/build/outputs/apk/debug/*.apk
