@@ -15,7 +15,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
@@ -23,18 +23,27 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Install Project Dependencies
-        run: npm install --force --ignore-scripts
+      - name: Locate App & Install Expo
+        run: |
+          echo "=== البحث عن مجلد التطبيق ==="
+          APP_DIR=$(dirname $(find . -maxdepth 3 -name "app.json" -o -name "App.tsx" -o -name "App.js" | head -n 1))
+          echo "APP_DIR=$APP_DIR" >> $GITHUB_ENV
+          echo "تم العثور على المسار: $APP_DIR"
+          cd $APP_DIR
+          npm install expo --force
 
       - name: Prebuild Native Android Project
-        run: npx --yes expo prebuild --platform android --clean
+        run: |
+          cd ${{ env.APP_DIR }}
+          npx --yes expo prebuild --platform android --clean
 
       - name: Build APK via Gradle
-        working-directory: android
-        run: ./gradlew assembleDebug --no-daemon
+        run: |
+          cd ${{ env.APP_DIR }}/android
+          ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Manage-Debts-App
-          path: android/app/build/outputs/apk/debug/*.apk
+          path: ${{ env.APP_DIR }}/android/app/build/outputs/apk/debug/*.apk
