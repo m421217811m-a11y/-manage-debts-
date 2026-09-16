@@ -34,7 +34,7 @@ jobs:
 
       - name: Prebuild Native Android Project
         working-directory: artifacts/manage-debts
-        run: npx expo prebuild --platform android --clean
+        run: npx expo prebuild --platform android --clean --no-install
 
       - name: Build APK via Gradle
         working-directory: artifacts/manage-debts/android
