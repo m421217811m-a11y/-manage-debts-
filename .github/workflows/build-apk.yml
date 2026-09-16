@@ -36,6 +36,14 @@ jobs:
         working-directory: artifacts/manage-debts
         run: npx expo prebuild --platform android --clean --no-install
 
+      - name: Bundle JavaScript Assets
+        working-directory: artifacts/manage-debts
+        run: |
+          mkdir -p android/app/src/main/assets
+          npx react-native bundle --platform android --dev false --entry-file index.ts --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res || \
+          npx react-native bundle --platform android --dev false --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res || \
+          npx react-native bundle --platform android --dev false --entry-file App.tsx --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res
+
       - name: Build APK via Gradle
         working-directory: artifacts/manage-debts/android
         run: ./gradlew assembleDebug --no-daemon
