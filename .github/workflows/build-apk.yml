@@ -22,8 +22,24 @@ jobs:
       - name: Install EAS CLI
         run: npm install -g eas-cli
 
-      - name: Configure EAS Project
+      - name: Force Exact Configs
         run: |
+          cat << 'EOF' > app.json
+          {
+            "expo": {
+              "name": "إدارة ديوني",
+              "slug": "manage-debt",
+              "android": {
+                "package": "com.mhm421.managedebt"
+              },
+              "extra": {
+                "eas": {
+                  "projectId": "5c29accf-1f88-4c3b-953e-fdaad87b4d7d"
+                }
+              }
+            }
+          }
+          EOF
           cat << 'EOF' > eas.json
           {
             "cli": {
@@ -39,12 +55,8 @@ jobs:
           }
           EOF
 
-      - name: Link EAS Project
-        run: eas init --id 5c29accf-1f88-4c3b-953e-fdaad87b4d7d --force --non-interactive
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-
       - name: Build APK with EAS
         run: eas build --platform android --profile preview --non-interactive
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EAS_PROJECT_ID: 5c29accf-1f88-4c3b-953e-fdaad87b4d7d
