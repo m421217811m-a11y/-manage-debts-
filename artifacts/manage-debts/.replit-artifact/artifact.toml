@@ -1,0 +1,24 @@
+kind = "mobile"
+previewPath = "/"
+title = "إدارة ديوني"
+description = "تطبيق Android شخصي لإدارة الديون والدفعات والأرصدة باللغة العربية، يعمل بالكامل دون اتصال ويحفظ البيانات محليًا على الجهاز."
+version = "1.0.0"
+id = "artifacts/manage-debts"
+router = "expo-domain"
+
+[[services]]
+name = "expo"
+ensurePreviewReachable = "/status"
+paths = [ "/" ]
+localPort = 22375
+
+[services.development]
+run = "pnpm --filter @workspace/manage-debts run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/manage-debts", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/manage-debts", "run", "serve" ]
+
+[services.env]
+PORT = "22375"
+BASE_PATH = "/"

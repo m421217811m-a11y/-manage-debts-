@@ -1,6 +1,6 @@
-# [Project name]
+# إدارة ديوني
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+تطبيق Android عربي لإدارة الديون والدفعات الشخصية، يعمل دون اتصال ويحفظ البيانات محليًا على الجهاز.
 
 ## Run & Operate
 
@@ -22,23 +22,33 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/manage-debts/app/` — شاشات Expo Router: الرئيسية، الأشخاص، العمليات، التقارير، الإعدادات، onboarding، وتفاصيل السجلات.
+- `artifacts/manage-debts/lib/AppContext.tsx` — الحالة المحلية وطبقة التخزين عبر AsyncStorage.
+- `artifacts/manage-debts/lib/finance.ts` — الحسابات المالية بوحدة أصغر للعملة، وإعادة حساب الأرصدة من سجل العمليات.
+- `artifacts/manage-debts/constants/colors.ts` — ألوان الهوية الفاتحة والداكنة.
+- `artifacts/manage-debts/assets/images/icon.png` — أيقونة التطبيق المستخدمة أيضًا في splash/adaptive icon.
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- التطبيق frontend-only في النسخة الأولى؛ لا توجد حسابات أو شبكة أو قاعدة بيانات سحابية.
+- يتم تخزين المبالغ كأعداد صحيحة بوحدة أصغر بدل floating point لتفادي أخطاء الحسابات المالية.
+- لا يتم جمع العملات المختلفة؛ كل رصيد يُحسب ويُعرض ضمن عملته.
+- رصيد الشخص ناتج عن سجل العمليات، وليس قيمة مخزنة منفصلة قابلة للتضارب.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- تجربة عربية RTL لإضافة الأشخاص، تسجيل الديون والدفعات، عرض الأرصدة، مراجعة سجل الحساب، تعديل وحذف العمليات، والتقارير الأساسية.
+- يدعم الشيكل والدولار واليورو والدينار الأردني، مع وضع ليلي اختياري وبيانات محفوظة محليًا.
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- واجهة عربية بالكامل باسم «إدارة ديوني» وشعار «كل ديونك، بوضوح.»
+- الهوية البصرية هادئة وفخمة بأخضر غابة عميق وخلفية عاجية، مع نصوص مالية واضحة.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- معاينة Expo تعمل عبر workflow `artifacts/manage-debts: expo`.
+- التطبيق موجّه للتثبيت المباشر على Android، وليس للنشر على Google Play.
 
 ## Pointers
 
