@@ -7,31 +7,40 @@ import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollV
 import { Field, PrimaryButton, Screen } from '@/components/Ui';
 import { useColors } from '@/hooks/useColors';
 import { useApp } from '@/lib/AppContext';
-import { formatMoney, getBalanceForTransactions, parseAmount } from '@/lib/finance';
+import { formatMoney, getBalanceForTransactions, getSignedDelta, parseAmount } from '@/lib/finance';
 import { CURRENCIES, Currency, Direction, makeId } from '@/lib/types';
 
 export default function AddTransactionScreen() {
   const colors = useColors();
   const { people, transactions, settings, addTransaction, updateTransaction } = useApp();
-  const params = useLocalSearchParams<{ personId?: string; mode?: string; transactionId?: string }>();
+  const params = useLocalSearchParams<{ personId?: string; mode?: string; transactionId?: string; direction?: Direction }>();
   const existing = transactions.find((item) => item.id === params.transactionId);
   const [personId, setPersonId] = useState(existing?.personId ?? params.personId ?? people[0]?.id ?? '');
   const [type, setType] = useState<'debt' | 'payment'>(existing?.type ?? (params.mode === 'payment' ? 'payment' : 'debt'));
-  const [direction, setDirection] = useState<Direction>(existing?.direction ?? 'receivable');
+  const [direction, setDirection] = useState<Direction>(existing?.direction ?? params.direction ?? 'receivable');
   const [amount, setAmount] = useState(existing ? String(existing.amountMinor / 100) : '');
   const [currency, setCurrency] = useState<Currency>(existing?.currency ?? settings.defaultCurrency);
   const [dueDate, setDueDate] = useState(existing?.dueDate?.slice(0, 10) ?? '');
   const [note, setNote] = useState(existing?.note ?? '');
   const person = people.find((item) => item.id === personId);
-  const currentBalance = personId ? Number(getBalanceForTransactions(transactions, personId, currency)) : 0;
+  const balanceTransactions = existing ? transactions.filter((item) => item.id !== existing.id) : transactions;
+  const currentBalance = personId ? Number(getBalanceForTransactions(balanceTransactions, personId, currency)) : 0;
   const amountMinor = parseAmount(amount);
-  const paymentDirection = currentBalance > 0 ? 'receivable' : 'payable';
-  const preview = currentBalance + (type === 'debt' ? (direction === 'receivable' ? amountMinor : -amountMinor) : (paymentDirection === 'receivable' ? -amountMinor : amountMinor));
+  const paymentDirection: Direction = type === 'payment' ? direction : direction;
+  const previewTransaction = {
+    type,
+    direction: type === 'payment' ? paymentDirection : direction,
+    amountMinor,
+  } as const;
+  const preview = currentBalance + (amountMinor > 0 ? getSignedDelta(previewTransaction) : 0);
   const canSave = !!personId && amountMinor > 0;
 
   async function save() {
     if (!canSave) {
-      Alert.alert('بيانات ناقصة', people.length ? 'اختر الشخص واكتب مبلغًا أكبر من صفر.' : 'أضف شخصًا أولًا من صفحة الأشخاص.');
+      Alert.alert(
+        'لا يمكن حفظ العملية',
+        !people.length ? 'أضف شخصًا أولًا من صفحة الأشخاص.' : 'اختر الشخص واكتب مبلغًا أكبر من صفر.',
+      );
       return;
     }
     const now = new Date().toISOString();
@@ -44,7 +53,7 @@ export default function AddTransactionScreen() {
   return <Screen><AppHeader title={existing ? 'تعديل العملية' : type === 'payment' ? 'تسجيل دفعة' : 'إضافة دين'} subtitle="سجّل العملية خلال ثوانٍ" back /><KeyboardAwareScrollViewCompat contentContainerStyle={styles.content}>
     {people.length === 0 ? <View style={[styles.noPeople, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="users" size={24} color={colors.primary} /><Text style={[styles.noPeopleTitle, { color: colors.foreground }]}>أضف شخصًا أولًا</Text><Text style={[styles.noPeopleText, { color: colors.mutedForeground }]}>لا يمكن تسجيل عملية بدون شخص.</Text><PrimaryButton title="إضافة شخص" onPress={() => router.push('/add-person')} icon="user-plus" /></View> : <>
       <Text style={[styles.question, { color: colors.foreground }]}>{type === 'payment' ? 'لمن تم تسجيل الدفعة؟' : 'ما الذي حدث؟'}</Text>
-      {type === 'debt' ? <View style={styles.choiceRow}><Choice title="هذا الشخص أصبح مدينًا لي" selected={direction === 'receivable'} onPress={() => setDirection('receivable')} /><Choice title="أصبحت مدينًا لهذا الشخص" selected={direction === 'payable'} onPress={() => setDirection('payable')} /></View> : null}
+       <View style={styles.choiceRow}>{type === 'payment' ? <><Choice title="الشخص دفع لي" selected={direction === 'receivable'} onPress={() => setDirection('receivable')} /><Choice title="أنا دفعت للشخص" selected={direction === 'payable'} onPress={() => setDirection('payable')} /></> : <><Choice title="هذا الشخص أصبح مدينًا لي" selected={direction === 'receivable'} onPress={() => setDirection('receivable')} /><Choice title="أصبحت مدينًا لهذا الشخص" selected={direction === 'payable'} onPress={() => setDirection('payable')} /></>}</View>
       <Text style={[styles.label, { color: colors.foreground }]}>الشخص</Text>
       <View style={styles.peopleWrap}>{people.map((item) => <Pressable key={item.id} onPress={() => setPersonId(item.id)} style={[styles.personChoice, { backgroundColor: personId === item.id ? colors.primary : colors.card, borderColor: personId === item.id ? colors.primary : colors.border }]}><Text style={{ color: personId === item.id ? colors.primaryForeground : colors.foreground, fontWeight: '700', fontSize: 13 }}>{item.name}</Text></Pressable>)}</View>
       <Field label="المبلغ" value={amount} onChangeText={setAmount} placeholder="0.00" keyboardType="decimal-pad" />

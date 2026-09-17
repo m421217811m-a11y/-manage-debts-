@@ -16,6 +16,7 @@ type AppContextValue = AppData & {
   addTransaction: (transaction: Transaction) => Promise<void>;
   updateTransaction: (transaction: Transaction) => Promise<void>;
   updateSettings: (settings: Partial<AppSettings>) => Promise<void>;
+  replaceData: (next: AppData) => Promise<void>;
   deletePerson: (id: string) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
 };
@@ -64,6 +65,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       persist({ ...data, settings: { ...data.settings, ...settings } }),
     [data, persist],
   );
+  const replaceData = useCallback(async (next: AppData) => {
+    const normalized: AppData = {
+      people: Array.isArray(next.people) ? next.people : [],
+      transactions: Array.isArray(next.transactions) ? next.transactions : [],
+      settings: { ...initialData.settings, ...(next.settings ?? {}) },
+    };
+    await persist(normalized);
+  }, [persist]);
   const deletePerson = useCallback(
     async (id: string) =>
       persist({
@@ -87,10 +96,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       addTransaction,
       updateTransaction,
       updateSettings,
+      replaceData,
       deletePerson,
       deleteTransaction,
     }),
-    [data, hydrated, addPerson, addTransaction, updateTransaction, updateSettings, deletePerson, deleteTransaction],
+    [data, hydrated, addPerson, addTransaction, updateTransaction, updateSettings, replaceData, deletePerson, deleteTransaction],
   );
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

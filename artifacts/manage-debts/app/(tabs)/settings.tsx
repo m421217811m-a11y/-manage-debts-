@@ -1,6 +1,9 @@
 import { Feather } from '@expo/vector-icons';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import React from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { AppHeader } from '@/components/AppHeader';
 import { Screen, SectionTitle } from '@/components/Ui';
 import { useColors } from '@/hooks/useColors';
@@ -9,17 +12,61 @@ import { CURRENCIES } from '@/lib/types';
 
 export default function SettingsScreen() {
   const colors = useColors();
-  const { settings, updateSettings, people, transactions } = useApp();
+  const { settings, updateSettings, replaceData, people, transactions } = useApp();
+  const [currencyModalVisible, setCurrencyModalVisible] = React.useState(false);
+  function chooseCurrency() {
+    setCurrencyModalVisible(true);
+  }
+  async function exportBackup() {
+    try {
+      if (!FileSystem.cacheDirectory) throw new Error('cache-unavailable');
+      const uri = `${FileSystem.cacheDirectory}manage-debts-backup-${Date.now()}.json`;
+      await FileSystem.writeAsStringAsync(uri, JSON.stringify({ people, transactions, settings }, null, 2), { encoding: FileSystem.EncodingType.UTF8 });
+      if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri, { mimeType: 'application/json', dialogTitle: 'مشاركة النسخة الاحتياطية' });
+      else Alert.alert('تم تجهيز النسخة', 'تم حفظ ملف النسخة الاحتياطية مؤقتًا على الجهاز.');
+    } catch {
+      Alert.alert('تعذر التصدير', 'لم نتمكن من تجهيز ملف النسخة الاحتياطية.');
+    }
+  }
+  async function importBackup() {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ type: 'application/json', copyToCacheDirectory: true });
+      if (result.canceled || !result.assets?.[0]) return;
+      const raw = await FileSystem.readAsStringAsync(result.assets[0].uri, { encoding: FileSystem.EncodingType.UTF8 });
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed.people) || !Array.isArray(parsed.transactions) || !parsed.settings) throw new Error('invalid-backup');
+      Alert.alert('استبدال البيانات؟', 'سيتم استبدال البيانات الحالية بمحتوى النسخة الاحتياطية.', [
+        { text: 'إلغاء', style: 'cancel' },
+        { text: 'استيراد', onPress: async () => {
+          try {
+            await replaceData({ people: parsed.people, transactions: parsed.transactions, settings: { ...settings, ...parsed.settings } });
+            Alert.alert('تم الاستيراد', 'تمت استعادة بياناتك بنجاح.');
+          } catch {
+            Alert.alert('تعذر الاستيراد', 'حدث خطأ أثناء حفظ البيانات المستوردة.');
+          }
+        } },
+      ]);
+    } catch {
+      Alert.alert('تعذر الاستيراد', 'الملف غير صالح أو لا يمكن قراءته.');
+    }
+  }
   return <Screen><AppHeader title="الإعدادات" subtitle="تحكم ببياناتك وتفضيلاتك" /><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
     <SectionTitle title="التخصيص" />
     <SettingRow icon="moon" title="الوضع الليلي" subtitle="ألوان مريحة للاستخدام في المساء" right={<Switch value={settings.darkMode} onValueChange={(value) => updateSettings({ darkMode: value })} trackColor={{ false: colors.border, true: colors.primary }} thumbColor={colors.card} />} />
-    <SettingRow icon="dollar-sign" title="العملة الافتراضية" subtitle={CURRENCIES.find((item) => item.value === settings.defaultCurrency)?.label} onPress={() => Alert.alert('العملة الافتراضية', 'يمكن تغيير العملة الافتراضية من النسخة الكاملة للتطبيق.')} />
+    <SettingRow icon="dollar-sign" title="العملة الافتراضية" subtitle={CURRENCIES.find((item) => item.value === settings.defaultCurrency)?.label} onPress={chooseCurrency} />
     <SectionTitle title="البيانات" />
-    <SettingRow icon="download" title="تصدير نسخة احتياطية" subtitle={`${people.length} أشخاص · ${transactions.length} عملية`} onPress={() => Alert.alert('النسخ الاحتياطي', 'ستتوفر مشاركة ملف النسخة الاحتياطية في الخطوة التالية. بياناتك محفوظة حاليًا على هذا الجهاز.')} />
-    <SettingRow icon="upload" title="استيراد نسخة احتياطية" subtitle="استعادة بياناتك من ملف محفوظ" onPress={() => Alert.alert('استيراد نسخة احتياطية', 'اختر ملفًا من جهازك لاستعادة البيانات.')} />
-    <SectionTitle title="الأمان والتطبيق" />
-    <SettingRow icon="lock" title="قفل التطبيق" subtitle="حماية اختيارية برمز أو بصمة" onPress={() => Alert.alert('قفل التطبيق', 'سيتم تفعيل القفل الاختياري في إعدادات الأمان القادمة.')} />
+    <SettingRow icon="download" title="تصدير نسخة احتياطية" subtitle={`${people.length} أشخاص · ${transactions.length} عملية`} onPress={exportBackup} />
+    <SettingRow icon="upload" title="استيراد نسخة احتياطية" subtitle="استعادة بياناتك من ملف محفوظ" onPress={importBackup} />
     <View style={[styles.about, { backgroundColor: colors.card, borderColor: colors.border }]}><View style={[styles.aboutMark, { backgroundColor: colors.primary }]}><Feather name="book-open" size={19} color={colors.primaryForeground} /></View><View style={styles.aboutCopy}><Text style={[styles.aboutTitle, { color: colors.foreground }]}>إدارة ديوني</Text><Text style={[styles.aboutText, { color: colors.mutedForeground }]}>كل ديونك، بوضوح.</Text><Text style={[styles.aboutVersion, { color: colors.mutedForeground }]}>الإصدار 1.0.0 · يعمل دون اتصال</Text></View></View>
+    <Modal visible={currencyModalVisible} transparent animationType="fade" onRequestClose={() => setCurrencyModalVisible(false)}>
+      <View style={styles.modalBackdrop}>
+        <View style={[styles.currencyModal, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.modalTitle, { color: colors.foreground }]}>اختر العملة الافتراضية</Text>
+          {CURRENCIES.map((item) => <Pressable key={item.value} onPress={() => { updateSettings({ defaultCurrency: item.value }); setCurrencyModalVisible(false); }} style={[styles.currencyOption, { borderBottomColor: colors.border }]}><Text style={[styles.currencySymbol, { color: colors.primary }]}>{item.symbol}</Text><Text style={[styles.currencyLabel, { color: colors.foreground }]}>{item.label}</Text>{settings.defaultCurrency === item.value ? <Feather name="check" size={18} color={colors.primary} /> : null}</Pressable>)}
+          <Pressable onPress={() => setCurrencyModalVisible(false)} style={styles.modalCancel}><Text style={{ color: colors.destructive, fontWeight: '700' }}>إلغاء</Text></Pressable>
+        </View>
+      </View>
+    </Modal>
   </ScrollView></Screen>;
 }
 
@@ -41,4 +88,11 @@ const styles = StyleSheet.create({
   aboutTitle: { fontSize: 15, fontWeight: '800' },
   aboutText: { fontSize: 12, marginTop: 3 },
   aboutVersion: { fontSize: 11, marginTop: 9 },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 20 },
+  currencyModal: { borderRadius: 22, borderWidth: 1, padding: 18 },
+  modalTitle: { fontSize: 18, fontWeight: '800', textAlign: 'right', marginBottom: 8 },
+  currencyOption: { minHeight: 52, borderBottomWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  currencySymbol: { fontSize: 17, fontWeight: '800', width: 34, textAlign: 'center' },
+  currencyLabel: { flex: 1, fontSize: 14, fontWeight: '600', textAlign: 'right' },
+  modalCancel: { minHeight: 48, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
 });

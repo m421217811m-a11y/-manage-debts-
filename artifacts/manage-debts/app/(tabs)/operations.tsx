@@ -6,7 +6,7 @@ import { AppHeader } from '@/components/AppHeader';
 import { EmptyState, Screen } from '@/components/Ui';
 import { useColors } from '@/hooks/useColors';
 import { useApp } from '@/lib/AppContext';
-import { formatDate, formatMoney, sortNewest } from '@/lib/finance';
+import { formatDate, formatMoney, getSignedDelta, sortNewest } from '@/lib/finance';
 import { TransactionType } from '@/lib/types';
 
 type Filter = 'all' | 'debt' | 'payment';
@@ -24,8 +24,9 @@ export default function OperationsScreen() {
 
 function OperationRow({ transaction, personName }: { transaction: { id: string; type: TransactionType; direction: 'receivable' | 'payable'; amountMinor: number; currency: 'ILS' | 'USD' | 'EUR' | 'JOD'; date: string }; personName: string }) {
   const colors = useColors();
-  const positive = transaction.type === 'debt' && transaction.direction === 'receivable';
-  return <Pressable onPress={() => router.push({ pathname: '/transaction/[id]', params: { id: transaction.id } })} style={({ pressed }) => [styles.row, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}><View style={[styles.icon, { backgroundColor: positive ? colors.accent : '#F7E8E7' }]}><Feather name={transaction.type === 'payment' ? 'repeat' : 'arrow-down-left'} size={17} color={positive ? colors.primary : colors.destructive} /></View><View style={styles.copy}><Text style={[styles.name, { color: colors.foreground }]}>{personName}</Text><Text style={[styles.meta, { color: colors.mutedForeground }]}>{transaction.type === 'payment' ? 'دفعة' : positive ? 'دين لي' : 'دين عليّ'} · {formatDate(transaction.date)}</Text></View><Text style={[styles.amount, { color: positive ? colors.positive : colors.destructive }]}>{positive ? '+' : '−'}{formatMoney(transaction.amountMinor, transaction.currency)}</Text></Pressable>;
+  const signed = getSignedDelta(transaction);
+  const positive = signed >= 0;
+  return <Pressable onPress={() => router.push({ pathname: '/transaction/[id]', params: { id: transaction.id } })} style={({ pressed }) => [styles.row, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}><View style={[styles.icon, { backgroundColor: positive ? colors.accent : '#F7E8E7' }]}><Feather name={transaction.type === 'payment' ? 'repeat' : 'arrow-down-left'} size={17} color={positive ? colors.primary : colors.destructive} /></View><View style={styles.copy}><Text style={[styles.name, { color: colors.foreground }]}>{personName}</Text><Text style={[styles.meta, { color: colors.mutedForeground }]}>{transaction.type === 'payment' ? transaction.direction === 'receivable' ? 'دفعة استلمها الشخص' : 'دفعة سددتها' : positive ? 'دين لي' : 'دين عليّ'} · {formatDate(transaction.date)}</Text></View><Text style={[styles.amount, { color: positive ? colors.positive : colors.destructive }]}>{positive ? '+' : '−'}{formatMoney(signed, transaction.currency)}</Text></Pressable>;
 }
 
 const styles = StyleSheet.create({

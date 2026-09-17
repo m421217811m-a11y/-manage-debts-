@@ -49,7 +49,7 @@ export function getBalanceForTransactions(
   return currency ? balances.get(currency) ?? 0 : balances;
 }
 
-export function getSignedDelta(transaction: Transaction) {
+export function getSignedDelta(transaction: Pick<Transaction, 'type' | 'direction' | 'amountMinor'>) {
   if (transaction.type === 'debt') {
     return transaction.direction === 'receivable'
       ? transaction.amountMinor
@@ -65,14 +65,24 @@ export function getPersonBalances(transactions: Transaction[], personId: string)
 }
 
 export function getTotals(transactions: Transaction[]) {
-  const totals = new Map<Currency, { receivable: number; payable: number }>();
+  const balancesByCurrency = new Map<Currency, Map<string, number>>();
   for (const transaction of transactions) {
-    const current = totals.get(transaction.currency) ?? { receivable: 0, payable: 0 };
-    if (transaction.type === 'debt') {
-      if (transaction.direction === 'receivable') current.receivable += transaction.amountMinor;
-      else current.payable += transaction.amountMinor;
+    const peopleBalances = balancesByCurrency.get(transaction.currency) ?? new Map<string, number>();
+    peopleBalances.set(
+      transaction.personId,
+      (peopleBalances.get(transaction.personId) ?? 0) + getSignedDelta(transaction),
+    );
+    balancesByCurrency.set(transaction.currency, peopleBalances);
+  }
+
+  const totals = new Map<Currency, { receivable: number; payable: number }>();
+  for (const [currency, peopleBalances] of balancesByCurrency) {
+    const summary = { receivable: 0, payable: 0 };
+    for (const balance of peopleBalances.values()) {
+      if (balance > 0) summary.receivable += balance;
+      if (balance < 0) summary.payable += Math.abs(balance);
     }
-    totals.set(transaction.currency, current);
+    totals.set(currency, summary);
   }
   return totals;
 }

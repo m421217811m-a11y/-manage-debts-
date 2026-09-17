@@ -1,28 +1,39 @@
 import { Feather } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import React from 'react';
+import React, { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AppHeader } from '@/components/AppHeader';
 import { Screen } from '@/components/Ui';
 import { useColors } from '@/hooks/useColors';
 import { useApp } from '@/lib/AppContext';
-import { formatDate, formatMoney } from '@/lib/finance';
+import { formatDate, formatMoney, getSignedDelta } from '@/lib/finance';
 
 export default function TransactionDetailsScreen() {
   const colors = useColors();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { transactions, people, deleteTransaction } = useApp();
+  const [deleting, setDeleting] = useState(false);
   const transaction = transactions.find((item) => item.id === String(id));
   if (!transaction) return <Screen><AppHeader title="تفاصيل العملية" back /><View style={styles.missing}><Text style={{ color: colors.mutedForeground }}>تعذر العثور على العملية.</Text></View></Screen>;
   const person = people.find((item) => item.id === transaction.personId);
-  const positive = transaction.type === 'debt' && transaction.direction === 'receivable';
+  const signed = getSignedDelta(transaction);
+  const positive = signed >= 0;
   function remove() {
-    Alert.alert('حذف هذه العملية؟', 'سيتم إعادة حساب الرصيد تلقائيًا.', [{ text: 'إلغاء', style: 'cancel' }, { text: 'حذف', style: 'destructive', onPress: async () => { await deleteTransaction(transaction!.id); router.back(); } }]);
+    Alert.alert('حذف هذه العملية؟', 'سيتم إعادة حساب الرصيد تلقائيًا.', [{ text: 'إلغاء', style: 'cancel' }, { text: 'حذف', style: 'destructive', onPress: async () => {
+      setDeleting(true);
+      try {
+        await deleteTransaction(transaction!.id);
+        router.back();
+      } catch {
+        setDeleting(false);
+        Alert.alert('تعذر الحذف', 'حدث خطأ أثناء حذف العملية. حاول مرة أخرى.');
+      }
+    } }]);
   }
   return <Screen><AppHeader title="تفاصيل العملية" subtitle={person?.name ?? 'شخص محذوف'} back /><ScrollView contentContainerStyle={styles.content}>
-    <View style={[styles.amountCard, { backgroundColor: positive ? colors.accent : colors.secondary }]}><Text style={{ color: colors.mutedForeground, fontSize: 13 }}>{transaction.type === 'payment' ? 'دفعة' : positive ? 'دين لي' : 'دين عليّ'}</Text><Text style={[styles.amount, { color: positive ? colors.positive : colors.destructive }]}>{positive ? '+' : '−'}{formatMoney(transaction.amountMinor, transaction.currency)}</Text><Text style={{ color: colors.mutedForeground, fontSize: 12 }}>{formatDate(transaction.date)}</Text></View>
+     <View style={[styles.amountCard, { backgroundColor: positive ? colors.accent : colors.secondary }]}><Text style={{ color: colors.mutedForeground, fontSize: 13 }}>{transaction.type === 'payment' ? transaction.direction === 'receivable' ? 'دفعة استلمها الشخص' : 'دفعة سددتها' : positive ? 'دين لي' : 'دين عليّ'}</Text><Text style={[styles.amount, { color: positive ? colors.positive : colors.destructive }]}>{positive ? '+' : '−'}{formatMoney(signed, transaction.currency)}</Text><Text style={{ color: colors.mutedForeground, fontSize: 12 }}>{formatDate(transaction.date)}</Text></View>
     <InfoRow label="النوع" value={transaction.type === 'payment' ? 'دفعة' : 'دين جديد'} /><InfoRow label="الشخص" value={person?.name ?? 'شخص محذوف'} /><InfoRow label="المبلغ" value={formatMoney(transaction.amountMinor, transaction.currency)} /><InfoRow label="التاريخ" value={formatDate(transaction.date)} />{transaction.dueDate ? <InfoRow label="تاريخ الاستحقاق" value={formatDate(transaction.dueDate)} /> : null}{transaction.note ? <InfoRow label="الملاحظة" value={transaction.note} /> : null}
-    <View style={styles.actions}><Pressable onPress={() => router.push({ pathname: '/add-transaction', params: { transactionId: transaction.id } })} style={[styles.edit, { backgroundColor: colors.primary }]}><Feather name="edit-2" size={16} color={colors.primaryForeground} /><Text style={{ color: colors.primaryForeground, fontWeight: '700' }}>تعديل</Text></Pressable><Pressable onPress={remove} style={[styles.delete, { borderColor: colors.border }]}><Feather name="trash-2" size={16} color={colors.destructive} /><Text style={{ color: colors.destructive, fontWeight: '700' }}>حذف</Text></Pressable></View>
+     <View style={styles.actions}><Pressable onPress={() => router.push({ pathname: '/add-transaction', params: { transactionId: transaction.id } })} style={[styles.edit, { backgroundColor: colors.primary }]}><Feather name="edit-2" size={16} color={colors.primaryForeground} /><Text style={{ color: colors.primaryForeground, fontWeight: '700' }}>تعديل</Text></Pressable><Pressable disabled={deleting} onPress={remove} style={[styles.delete, { borderColor: colors.border, opacity: deleting ? 0.5 : 1 }]}><Feather name="trash-2" size={16} color={colors.destructive} /><Text style={{ color: colors.destructive, fontWeight: '700' }}>{deleting ? 'جارٍ الحذف…' : 'حذف'}</Text></Pressable></View>
   </ScrollView></Screen>;
 }
 

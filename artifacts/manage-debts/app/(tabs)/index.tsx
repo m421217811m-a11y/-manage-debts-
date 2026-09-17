@@ -6,7 +6,7 @@ import { AppHeader } from '@/components/AppHeader';
 import { EmptyState, Screen, SectionTitle } from '@/components/Ui';
 import { useColors } from '@/hooks/useColors';
 import { useApp } from '@/lib/AppContext';
-import { formatDate, formatMoney, getPrimaryBalance, sortNewest } from '@/lib/finance';
+import { formatDate, formatMoney, getPrimaryBalance, getSignedDelta, sortNewest } from '@/lib/finance';
 
 export default function DashboardScreen() {
   const colors = useColors();
@@ -57,7 +57,7 @@ export default function DashboardScreen() {
         <SectionTitle title="آخر العمليات" action={recent.length ? 'عرض الكل' : undefined} onAction={() => router.push('/operations')} />
         {recent.length ? recent.map((transaction) => {
           const person = people.find((item) => item.id === transaction.personId);
-          const signed = transaction.type === 'debt' && transaction.direction === 'receivable' ? transaction.amountMinor : -transaction.amountMinor;
+          const signed = getSignedDelta(transaction);
           return (
             <Pressable key={transaction.id} onPress={() => router.push('/operations')} style={({ pressed }) => [styles.activity, { borderBottomColor: colors.border, opacity: pressed ? 0.7 : 1 }]}>
               <View style={[styles.activityIcon, { backgroundColor: signed > 0 ? colors.accent : '#F7E8E7' }]}>
@@ -65,7 +65,7 @@ export default function DashboardScreen() {
               </View>
               <View style={styles.activityCopy}>
                 <Text style={[styles.activityName, { color: colors.foreground }]}>{person?.name ?? 'شخص محذوف'}</Text>
-                <Text style={[styles.activityMeta, { color: colors.mutedForeground }]}>{transaction.type === 'payment' ? 'دفعة' : 'دين جديد'} · {formatDate(transaction.date)}</Text>
+                <Text style={[styles.activityMeta, { color: colors.mutedForeground }]}>{transaction.type === 'payment' ? transaction.direction === 'receivable' ? 'دفعة استلمها الشخص' : 'دفعة سددتها' : 'دين جديد'} · {formatDate(transaction.date)}</Text>
               </View>
               <Text style={[styles.activityAmount, { color: signed > 0 ? colors.positive : colors.destructive }]}>{signed > 0 ? '+' : '−'}{formatMoney(transaction.amountMinor, transaction.currency)}</Text>
             </Pressable>
